@@ -1,0 +1,24 @@
+[project]
+name = "fraud-risk-scoring"
+version = "0.1.0"
+description = "Card fraud risk scoring on IEEE-CIS: time-based validation, cost-sensitive thresholds, SHAP"
+requires-python = ">=3.12"
+dependencies = [
+    "catboost>=1.2.10",
+    "lightgbm>=4.7.0",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.4",
+    "pandas>=3.0.6",
+    "pyarrow>=26.0.0",
+    "scikit-learn>=1.9.1",
+    "seaborn>=0.13.2",
+    "shap>=0.53.0",
+]
+
+[dependency-groups]
+dev = [
+    "jupyter>=1.1.1",
+    "kaggle>=2.2.4",
+    "pytest>=9.1.1",
+    "ruff>=0.17.0",
+]
