@@ -1,0 +1,28 @@
+# ===== Data =====
+# Kaggle competition data must not be redistributed
+data/
+*.csv
+*.parquet
+*.zip
+
+# ===== Models and training artifacts =====
+models/
+catboost_info/
+mlruns/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# ===== Jupyter =====
+.ipynb_checkpoints/
+
+# ===== IDE =====
+.idea/
+
+# ===== Secrets =====
+kaggle.json
+.env
