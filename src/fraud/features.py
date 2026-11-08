@@ -26,3 +26,21 @@ def add_card_start_day(df: pd.DataFrame) -> pd.DataFrame:
     day = df["TransactionDT"] // SECONDS_PER_DAY
     df["card_start_day"] = day - df["D1"]
     return df
+
+
+D_AGE_COLS = ["D2", "D4", "D6", "D10", "D11", "D12", "D14", "D15"]
+
+
+def add_d_start_days(df: pd.DataFrame) -> pd.DataFrame:
+    """Add the transaction day minus each age-like D column, in place."""
+    day = df["TransactionDT"] // SECONDS_PER_DAY
+    for col in D_AGE_COLS:
+        df[f"{col}_start_day"] = day - df[col]
+    return df
+
+
+def add_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Add every feature kept after the checks in notebook 03, in place."""
+    add_card_start_day(df)
+    add_d_start_days(df)
+    return df
