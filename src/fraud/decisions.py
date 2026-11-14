@@ -21,7 +21,12 @@ def choose_actions(
 
 
 def total_loss(
-    fraud: np.ndarray, amount: np.ndarray, verify: np.ndarray, decline: np.ndarray, verify_cost: float = VERIFY_COST) -> float:
+    fraud: np.ndarray,
+    amount: np.ndarray,
+    verify: np.ndarray,
+    decline: np.ndarray,
+    verify_cost: float = VERIFY_COST,
+) -> float:
     """Money lost on labelled transactions under the given actions; the rest are approved."""
     approve = ~verify & ~decline
     honest = ~fraud

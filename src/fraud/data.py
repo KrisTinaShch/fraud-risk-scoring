@@ -28,7 +28,9 @@ def build_train() -> pd.DataFrame:
     """Merge the raw CSVs, reduce memory and cache the result as Parquet."""
     transactions = pd.read_csv(RAW_DIR / "train_transaction.csv")
     identity = pd.read_csv(RAW_DIR / "train_identity.csv")
-    train = transactions.merge(identity, on="TransactionID", how="left", validate="one_to_one")
+    train = transactions.merge(
+        identity, on="TransactionID", how="left", validate="one_to_one"
+    )
     del transactions, identity
 
     train = reduce_memory(train)
