@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fraud Risk Scoring</title>
+  <meta name="description" content="A card-fraud model on the IEEE-CIS data: what its scores are worth in money, how it compares with other models and why it flags a transaction.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="page-header">
+    <div class="wrap">
+      <h1>Fraud Risk Scoring</h1>
+      <p class="lede">
+        A model that estimates how likely a card payment is to be fraud, trained on six months of e-commerce
+        transactions. This page shows what its scores are worth in money, how it compares with simpler models,
+        and why it flags a transaction.
+      </p>
+      <dl class="facts" id="facts"></dl>
+      <nav class="page-nav" aria-label="Sections">
+        <a href="#decisions">Decisions &amp; money</a>
+        <a href="#models">Models</a>
+        <a href="#explanations">Explanations</a>
+        <a href="#about">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section id="decisions" class="section">
+      <div class="wrap">
+        <h2>What the scores are worth</h2>
+        <p class="section-intro">
+          Every transaction gets a calibrated fraud probability. The rule then picks the action with the lowest
+          expected loss: approve it, ask the customer to confirm (for example with an SMS code), or decline it.
+          Change the cost assumptions and see the result on the test month, which no model or setting was tuned on.
+        </p>
+
+        <div class="controls card">
+          <div class="control-row">
+            <div class="toggle" role="group" aria-label="Model" id="model-toggle">
+              <button type="button" data-value="lightgbm" aria-pressed="true">LightGBM</button>
+              <button type="button" data-value="logreg" aria-pressed="false">Logistic regression</button>
+            </div>
+            <div class="toggle" role="group" aria-label="Decision rule" id="rule-toggle">
+              <button type="button" data-value="three" aria-pressed="true">Approve · confirm · decline</button>
+              <button type="button" data-value="two" aria-pressed="false">Approve · decline</button>
+            </div>
+            <button type="button" class="reset" id="reset">Reset assumptions</button>
+          </div>
+          <div class="sliders">
+            <label class="slider">
+              <span class="slider-label">Chargeback fee per missed fraud</span>
+              <output id="fee-out" for="fee"></output>
+              <input type="range" id="fee" step="1">
+            </label>
+            <label class="slider">
+              <span class="slider-label">Cost of declining an honest customer</span>
+              <output id="decline-out" for="decline"></output>
+              <input type="range" id="decline" step="1">
+            </label>
+            <label class="slider" data-three-only>
+              <span class="slider-label">Cost of a confirmation for an honest customer</span>
+              <output id="verify-out" for="verify"></output>
+              <input type="range" id="verify" step="1">
+            </label>
+            <label class="slider" data-three-only>
+              <span class="slider-label">Fraudsters who pass the confirmation</span>
+              <output id="pass-out" for="pass"></output>
+              <input type="range" id="pass" step="1">
+            </label>
+          </div>
+        </div>
+
+        <div class="results">
+          <div class="card hero-card">
+            <p class="hero-value" id="hero-value">–</p>
+            <p class="hero-label">of fraud losses avoided, compared with approving every transaction</p>
+            <p class="hero-sub" id="hero-sub"></p>
+            <p class="hero-compare" id="hero-compare"></p>
+          </div>
+          <div class="tiles" id="tiles"></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3>What happens to each transaction</h3>
+            <p class="chart-note" id="seg-note"></p>
+            <div class="seg-legend" id="seg-legend"></div>
+            <div class="seg-group">
+              <p class="seg-title" id="seg-honest-title"></p>
+              <div class="segbar" id="seg-honest"></div>
+              <p class="seg-title" id="seg-fraud-title"></p>
+              <div class="segbar" id="seg-fraud"></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Where the remaining loss comes from</h3>
+            <p class="chart-note">Loss on the test month under the current assumptions.</p>
+            <div class="breakdown" id="breakdown"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Money saved as a confirmation gets more expensive</h3>
+          <p class="chart-note" id="sens-note"></p>
+          <div class="chart" id="sens-chart"></div>
+          <details class="data-table"><summary>Data table</summary><div id="sens-table"></div></details>
+        </div>
+      </div>
+    </section>
+
+    <section id="models" class="section">
+      <div class="wrap">
+        <h2>How good is the model</h2>
+        <p class="section-intro">
+          Only 3.5% of transactions are fraud, so ROC-AUC looks high for almost any model. The precision–recall
+          curve shows how hard the task really is: among the transactions a model flags, how many are fraud.
+          Curves are on the test month (days 151–182).
+        </p>
+        <div class="grid-3">
+          <div class="card">
+            <h3>Precision–recall</h3>
+            <p class="chart-note">Share of flagged transactions that are fraud, against share of fraud caught.</p>
+            <div class="chart" id="pr-chart"></div>
+            <details class="data-table"><summary>Data table</summary><div id="pr-table"></div></details>
+          </div>
+          <div class="card">
+            <h3>ROC</h3>
+            <p class="chart-note">Share of fraud caught, against share of honest transactions flagged.</p>
+            <div class="chart" id="roc-chart"></div>
+            <details class="data-table"><summary>Data table</summary><div id="roc-table"></div></details>
+          </div>
+          <div class="card">
+            <h3>Calibration</h3>
+            <p class="chart-note">Actual fraud share against the predicted probability, in ten bins. The grey diagonal is perfect calibration.</p>
+            <div class="chart" id="cal-chart"></div>
+            <details class="data-table"><summary>Data table</summary><div id="cal-table"></div></details>
+          </div>
+        </div>
+        <div class="card">
+          <h3>All models</h3>
+          <p class="chart-note">
+            Validation month (days 121–150) for every model; test month for the two models carried to the end.
+            A random guess scores the fraud share as PR-AUC.
+          </p>
+          <div class="table-scroll">
+            <table class="metrics" id="metrics-table"></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="explanations" class="section">
+      <div class="wrap">
+        <h2>Why the model flags a transaction</h2>
+        <p class="section-intro">
+          SHAP splits a LightGBM score into contributions, one per column, that add up exactly to the score. Most
+          columns are masked by Vesta (C, D, V and id columns), so for many of them only the name is known.
+        </p>
+        <div class="card">
+          <h3>Columns the model relies on most</h3>
+          <p class="chart-note" id="imp-note"></p>
+          <div class="seg-legend" id="imp-legend"></div>
+          <div class="chart" id="imp-chart"></div>
+          <details class="data-table"><summary>Data table</summary><div id="imp-table"></div></details>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>A transaction the model flags</h3>
+            <p class="chart-note" id="wf-flagged-note"></p>
+            <div class="seg-legend" id="wf-legend-1"></div>
+            <div class="chart" id="wf-flagged"></div>
+            <details class="data-table"><summary>Data table</summary><div id="wf-flagged-table"></div></details>
+          </div>
+          <div class="card">
+            <h3>A fraud the model misses</h3>
+            <p class="chart-note" id="wf-missed-note"></p>
+            <div class="seg-legend" id="wf-legend-2"></div>
+            <div class="chart" id="wf-missed"></div>
+            <details class="data-table"><summary>Data table</summary><div id="wf-missed-table"></div></details>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="about" class="section">
+      <div class="wrap">
+        <h2>About</h2>
+        <div class="card">
+          <h3>Time-based split</h3>
+          <p class="chart-note">
+            Models learn on the first four months, choices are made on the fifth, and the sixth is touched once, at
+            the end. A random split would let the model learn from the future and overstate its quality.
+          </p>
+          <div class="timeline" id="timeline"></div>
+        </div>
+        <div class="grid-2">
+          <div class="card prose">
+            <h3>Method</h3>
+            <ul>
+              <li>Data: IEEE-CIS Fraud Detection (Vesta), 590,540 card payments over 182 days, 3.5% fraud.</li>
+              <li>Models: logistic regression, random forest, CatBoost and LightGBM tuned with Optuna. LightGBM uses
+                440 columns, nine of them built in this project: the day a card and its D-column counters started.</li>
+              <li>Probabilities are calibrated with Platt scaling on the validation month.</li>
+              <li>Default costs: a missed fraud costs its amount plus a $20 chargeback fee, declining an honest
+                customer $10, a confirmation $2 per honest customer, passed by 10% of fraudsters.</li>
+              <li>Explanations: SHAP values of LightGBM on 5,000 validation transactions.</li>
+            </ul>
+          </div>
+          <div class="card prose">
+            <h3>Limitations</h3>
+            <ul>
+              <li>The costs are assumptions, not Vesta's figures; the simulator above shows how the result moves
+                with them.</li>
+              <li>The model ages: PR-AUC fell from 0.654 on the validation month to 0.572 on the test month, so in
+                practice it would be retrained regularly.</li>
+              <li>A chargeback also marks the card's later payments as fraud, and the newest labels may not be final.</li>
+              <li>Most columns are masked, so explanations often name a column whose meaning is unknown.</li>
+              <li>One test month: other periods may give other numbers.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="page-footer">
+    <div class="wrap">
+      <p>
+        Data: <a href="https://www.kaggle.com/competitions/ieee-fraud-detection">IEEE-CIS Fraud Detection</a>
+        (Vesta Corporation, via Kaggle). The competition rules do not allow redistributing the data, so this page
+        shows only aggregated results: totals, curves and model explanations.
+      </p>
+      <p><a href="https://github.com/KrisTinaShch/fraud-risk-scoring">Source code on GitHub</a></p>
+    </div>
+  </footer>
+
+  <div class="tooltip" id="tooltip" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>
