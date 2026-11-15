@@ -16,13 +16,6 @@ const usdSmall = (v) => (Number.isInteger(v) ? `$${v}` : `$${num(v, 2)}`);
 const pct = (v, digits = 0) => `${num(v * 100, digits)}%`;
 const signed = (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${num(Math.abs(v), 2)}`;
 const plain = (v) => `${v < 0 ? "−" : ""}${num(Math.abs(v), 2)}`;
-const sigmoid = (z) => 1 / (1 + Math.exp(-z));
-
-function prob(z) {
-  const p = sigmoid(z);
-  return pct(p, p < 0.01 || p > 0.99 ? 2 : 1);
-}
-
 function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
@@ -294,7 +287,7 @@ function waterfall(container, r) {
     cum += r.values[i];
   });
   steps.push({ name: `${r.rest_count} other columns`, from: cum, to: cum + r.rest, delta: r.rest });
-  const rows = [{ name: "Average transaction", point: r.base }, ...steps, { name: "This transaction", point: r.score }];
+  const rows = [{ name: "Starting point", point: r.base }, ...steps, { name: "This transaction", point: r.score }];
 
   const values = [r.base, r.score, ...steps.flatMap((st) => [st.from, st.to])];
   let lo = Math.min(...values);
@@ -345,9 +338,9 @@ function waterfall(container, r) {
         "text",
         { x: x(d.point) + (right ? 10 : -10), y: mid + 4, "text-anchor": right ? "start" : "end", class: "bar-value" },
         svg,
-        `${plain(d.point)} · ${prob(d.point)}`,
+        plain(d.point),
       );
-      hoverable(hit, () => ({ title: d.name, rows: [{ value: plain(d.point), name: `score, ${prob(d.point)} fraud` }] }));
+      hoverable(hit, () => ({ title: d.name, rows: [{ value: plain(d.point), name: "raw score (log-odds)" }] }));
       return;
     }
     const color = d.delta >= 0 ? fraudColor : honestColor;
@@ -501,7 +494,9 @@ function renderSimulator() {
     tile(
       "Frauds stopped",
       count(stopped),
-      three ? `${count(r.fd)} declined, ${count(r.fv)} sent to confirm` : `of ${count(per.frauds)} frauds`,
+      three
+        ? `${count(r.fd)} declined, ${count(r.fv)} sent to confirm (${pct(r.P)} of those pass)`
+        : `of ${count(per.frauds)} frauds`,
     ),
     tile("Frauds approved", count(r.fa), r.fa ? `average amount ${usd(r.faAmount / r.fa)}` : "none"),
   );
@@ -559,7 +554,7 @@ function renderSensitivity() {
     `current confirmation cost.`;
 
   lineChart(document.getElementById("sens-chart"), {
-    label: "Share of fraud losses saved against the cost of a confirmation, for both models",
+    label: "Share of losses saved against the cost of a confirmation, for both models",
     series,
     height: 260,
     endLabels: true,
@@ -643,7 +638,7 @@ const VALID_TABLE = [
   { name: "Random guess", columns: null, roc: 0.5, pr: 0.034, caught: 0.01, test: "random" },
   { name: "Logistic regression", columns: 101, roc: 0.82, pr: 0.3, caught: 0.235, test: "logreg" },
   { name: "Random forest", columns: 101, roc: 0.905, pr: 0.489, caught: null },
-  { name: "CatBoost", columns: 440, roc: 0.912, pr: 0.602, caught: null },
+  { name: "CatBoost", columns: 440, roc: 0.911, pr: 0.595, caught: null },
   { name: "LightGBM, 300 trees", columns: 440, roc: 0.928, pr: 0.607, caught: null },
   { name: "LightGBM, early stopping", columns: 440, roc: 0.931, pr: 0.648, caught: null },
   { name: "LightGBM, tuned", columns: 440, roc: 0.935, pr: 0.654, caught: 0.569, test: "lightgbm", main: true },
@@ -807,22 +802,22 @@ function renderExplanations() {
 
   const flagged = shap.flagged;
   document.getElementById("wf-flagged-note").textContent =
-    `The most suspicious of ${count(shap.sample_size)} validation payments. The model starts from its average score ` +
-    `(${plain(flagged.base)}, about ${prob(flagged.base)} fraud) and ends at ${plain(flagged.score)} ` +
-    `(${prob(flagged.score)}). Besides the nine largest pushes, the other ${flagged.rest_count} columns together ` +
-    `add ${signed(flagged.rest)}.`;
+    `The most suspicious of ${count(shap.sample_size)} validation payments. The model starts from its average raw ` +
+    `score (${plain(flagged.base)}, a typical transaction) and ends at ${plain(flagged.score)}. Besides the nine ` +
+    `largest pushes, the other ${flagged.rest_count} columns together add ${signed(flagged.rest)}. Scores are ` +
+    `log-odds before calibration, so they are not read as probabilities.`;
   waterfall(document.getElementById("wf-flagged"), flagged);
 
   const missed = shap.missed;
   document.getElementById("wf-missed-note").textContent =
     `The fraud the model found most honest among the ${shap.frauds_in_sample} frauds in the sample: it ends at ` +
-    `${plain(missed.score)} (${prob(missed.score)}). The card's start day, card1, the amount and D1 push it ` +
+    `${plain(missed.score)}, below the starting point. The card's start day, card1, the amount and D1 push it ` +
     `towards honest, and the few warnings are outweighed: some fraud looks like an ordinary purchase.`;
   waterfall(document.getElementById("wf-missed"), missed);
 
   for (const [id, r] of [["wf-flagged-table", flagged], ["wf-missed-table", missed]]) {
     dataTable(document.getElementById(id), ["Step", "Contribution"], [
-      ["Average transaction", plain(r.base)],
+      ["Starting point", plain(r.base)],
       ...r.features.map((f, i) => [f, signed(r.values[i])]),
       [`${r.rest_count} other columns`, signed(r.rest)],
       ["This transaction", plain(r.score)],

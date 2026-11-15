@@ -4,6 +4,8 @@ data/
 *.csv
 *.parquet
 *.zip
+# small check runs of scripts/export_demo.py --sample: too few rows to publish
+demo/results_sample.json
 
 # ===== Models and training artifacts =====
 models/

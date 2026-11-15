@@ -78,7 +78,7 @@
         <div class="results">
           <div class="card hero-card">
             <p class="hero-value" id="hero-value">–</p>
-            <p class="hero-label">of fraud losses avoided, compared with approving every transaction</p>
+            <p class="hero-label">lower total loss than approving every transaction (missed fraud plus the cost of declines and confirmations)</p>
             <p class="hero-sub" id="hero-sub"></p>
             <p class="hero-compare" id="hero-compare"></p>
           </div>
@@ -145,7 +145,8 @@
           <h3>All models</h3>
           <p class="chart-note">
             Validation month (days 121–150) for every model; test month for the two models carried to the end.
-            A random guess scores the fraud share as PR-AUC.
+            Models with randomness are averaged over three seeds, except the tuned LightGBM: seed 42, the model
+            carried to the test month. A random guess scores the fraud share as PR-AUC.
           </p>
           <div class="table-scroll">
             <table class="metrics" id="metrics-table"></table>
@@ -216,8 +217,9 @@
             <ul>
               <li>The costs are assumptions, not Vesta's figures; the simulator above shows how the result moves
                 with them.</li>
-              <li>The model ages: PR-AUC fell from 0.654 on the validation month to 0.572 on the test month, so in
-                practice it would be retrained regularly.</li>
+              <li>Quality drops in the first weeks after the training data, then holds: PR-AUC is 0.654 on the
+                validation month (optimistic, as it was used for tuning), 0.552 on its second half and 0.572 on the
+                test month. Frequent retraining would keep the model in its strongest weeks.</li>
               <li>A chargeback also marks the card's later payments as fraud, and the newest labels may not be final.</li>
               <li>Most columns are masked, so explanations often name a column whose meaning is unknown.</li>
               <li>One test month: other periods may give other numbers.</li>
